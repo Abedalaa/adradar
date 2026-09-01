@@ -205,6 +205,8 @@ def create_app() -> Flask:
             result = run_pipeline(session)
             for err in result["ingest_errors"]:
                 flash(f"فشل تحديث {err['competitor']}: {err['error']}")
+            if result.get("scrape_skipped"):
+                flash(result["scrape_skipped"])
         finally:
             session.close()
         return safe_redirect()
