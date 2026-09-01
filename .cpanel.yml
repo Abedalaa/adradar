@@ -1,0 +1,27 @@
+---
+# cPanel Git Version Control deployment (Manage > Deploy HEAD Commit).
+#
+# The live app root can't be the clone target: it already holds .env,
+# adradar.db and the swipe_file/ directory, and cPanel only clones into
+# an empty directory. So the repo lives in ~/repositories/adradar and
+# this file copies code across on deploy, leaving those three alone —
+# they're untracked, so nothing here can clobber them.
+#
+# The final touch is what actually applies the change: Passenger keeps a
+# worker alive across file edits and only reloads when tmp/restart.txt
+# is newer than the running process. Editing a .py without it leaves the
+# old code serving, which is exactly what went wrong updating pipeline.py
+# by hand.
+deployment:
+  tasks:
+    - export DEPLOYPATH=$HOME/adradar.dreamers.cv
+    - /bin/mkdir -p $DEPLOYPATH/adradar/templates $DEPLOYPATH/adradar/sources $DEPLOYPATH/tools $DEPLOYPATH/tmp
+    - /bin/cp adradar/*.py $DEPLOYPATH/adradar/
+    - /bin/cp adradar/templates/*.html $DEPLOYPATH/adradar/templates/
+    - /bin/cp adradar/sources/*.py $DEPLOYPATH/adradar/sources/
+    - /bin/cp tools/*.py $DEPLOYPATH/tools/
+    - /bin/cp passenger_wsgi.py main.py wsgi.py serve.py $DEPLOYPATH/
+    - /bin/cp requirements.txt requirements-cpanel.txt $DEPLOYPATH/
+    # Stale bytecode from a previous layout can shadow a just-copied .py.
+    - /bin/rm -rf $DEPLOYPATH/__pycache__ $DEPLOYPATH/adradar/__pycache__ $DEPLOYPATH/adradar/sources/__pycache__
+    - /bin/touch $DEPLOYPATH/tmp/restart.txt
