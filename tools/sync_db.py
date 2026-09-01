@@ -17,8 +17,10 @@ import sys
 
 import requests
 
-BASE_URL = os.environ["SYNC_URL"].rstrip("/")
-TOKEN = os.environ["SYNC_TOKEN"]
+# .strip() both: pasting into a secret box picks up stray whitespace or a
+# trailing newline surprisingly often, and the token compare is exact.
+BASE_URL = os.environ["SYNC_URL"].strip().rstrip("/")
+TOKEN = os.environ["SYNC_TOKEN"].strip()
 LOCAL_PATH = os.environ.get("LOCAL_DB", "adradar.db")
 TIMEOUT = 120
 
