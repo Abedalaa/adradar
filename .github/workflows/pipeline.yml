@@ -48,6 +48,14 @@ jobs:
       - name: Fetch the live database
         run: python tools/sync_db.py download
 
+      # create_all is a no-op against the downloaded database, and the
+      # thing that makes a first run work at all: the CLI's `pipeline`
+      # command queries tables directly and never calls init_db() itself
+      # (only the web app's create_app does), so a fresh database would
+      # otherwise fail with "no such table: competitors".
+      - name: Ensure schema exists
+        run: python main.py init-db
+
       - name: Run pipeline
         run: python main.py pipeline
 
