@@ -6,6 +6,8 @@ dashboard's refresh button, so both stay in sync with one code path.
 
 from __future__ import annotations
 
+import importlib.util
+
 from sqlalchemy.orm import Session
 
 from . import classify as classify_mod
@@ -36,21 +38,22 @@ def run_pipeline(session: Session) -> dict:
     scrape_competitors = session.query(Competitor).filter_by(platform="meta_scrape").all()
     scrape_skipped = None
     if scrape_competitors:
-        # Playwright is only imported here — a plain "meta" (API) setup
-        # never needs it installed.
-        try:
-            scrape_client = _scraper_client()
-        except ImportError:
-            # Expected on shared hosting, which can't install Playwright or
-            # a browser: the dashboard runs there, the scraper runs in CI
-            # (.github/workflows/pipeline.yml). Report this once, as a
-            # status line, rather than as one alarming failure per
-            # competitor — nothing here is actually broken.
+        # Ask whether Playwright is installed rather than waiting to be told.
+        # Constructing MetaScraperClient does NOT raise without it: the
+        # module imports playwright inside _scrape(), so the failure only
+        # surfaces mid-fetch, once per competitor, as a raw
+        # "No module named 'playwright'" — three alarming red errors for
+        # a state that is entirely expected. Shared hosting can't install
+        # a browser; those competitors are scraped in CI instead
+        # (.github/workflows/pipeline.yml).
+        if importlib.util.find_spec("playwright") is None:
             scrape_client = None
             scrape_skipped = (
                 f"تم تخطي {len(scrape_competitors)} منافس (سحب من مكتبة الإعلانات) — "
                 "بيتحدّثوا تلقائياً كل 12 ساعة من GitHub Actions، مش من السيرفر ده."
             )
+        else:
+            scrape_client = _scraper_client()
 
         if scrape_client is not None:
             for comp in scrape_competitors:
