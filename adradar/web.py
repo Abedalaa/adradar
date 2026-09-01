@@ -20,10 +20,15 @@ def create_app() -> Flask:
     app.secret_key = os.getenv("FLASK_SECRET_KEY", "adradar-local-dev")
     init_db()
 
-    def common_context() -> dict:
+    def common_context(session) -> dict:
         client = MetaAdLibraryClient()
+        # The demo-data banner is only meaningful when something actually
+        # pulls from the Ad Library API. On a scraper-only setup (every
+        # competitor on platform="meta_scrape") a missing token degrades
+        # nothing, and the banner reads as a fault where there is none.
+        uses_api = session.query(Competitor).filter_by(platform="meta").count() > 0
         return {
-            "dry_run": client.dry_run,
+            "dry_run": client.dry_run and uses_api,
             "flashed": get_flashed_messages(),
             "angle_labels": classify_mod.ANGLE_LABELS_AR,
         }
@@ -38,7 +43,7 @@ def create_app() -> Flask:
     def overview():
         session = get_session()
         try:
-            ctx = common_context()
+            ctx = common_context(session)
             ctx.update(
                 stats=queries.dashboard_stats(session),
                 longevity=queries.longevity_leaderboard(session, limit=5),
@@ -53,7 +58,7 @@ def create_app() -> Flask:
     def longevity():
         session = get_session()
         try:
-            ctx = common_context()
+            ctx = common_context(session)
             ctx.update(
                 ads=queries.longevity_leaderboard(session, limit=200),
                 saved_ids=queries.saved_raw_ad_ids(session),
@@ -68,7 +73,7 @@ def create_app() -> Flask:
         try:
             competitor_raw = request.args.get("competitor", "").strip()
             competitor_id = int(competitor_raw) if competitor_raw.isdigit() else None
-            ctx = common_context()
+            ctx = common_context(session)
             ctx.update(
                 competitors=session.query(Competitor).order_by(Competitor.name).all(),
                 selected_competitor=competitor_id,
@@ -83,7 +88,7 @@ def create_app() -> Flask:
         session = get_session()
         try:
             active_type = request.args.get("type") or None
-            ctx = common_context()
+            ctx = common_context(session)
             ctx.update(
                 items=queries.saved_ads(session, creative_type=active_type),
                 active_type=active_type,
@@ -96,7 +101,7 @@ def create_app() -> Flask:
     def alerts():
         session = get_session()
         try:
-            ctx = common_context()
+            ctx = common_context(session)
             ctx.update(alerts=queries.recent_alerts(session, limit=100))
             return render_template("alerts.html", **ctx)
         finally:
@@ -124,7 +129,7 @@ def create_app() -> Flask:
                         "date_label": f"{fs.day} {month_names[fs.month - 1]}",
                     }
                 )
-            ctx = common_context()
+            ctx = common_context(session)
             ctx.update(rows=rows)
             return render_template("calendar.html", **ctx)
         finally:
@@ -134,7 +139,7 @@ def create_app() -> Flask:
     def failures():
         session = get_session()
         try:
-            ctx = common_context()
+            ctx = common_context(session)
             ctx.update(failures=queries.failure_log(session, limit=100))
             return render_template("failures.html", **ctx)
         finally:
@@ -144,7 +149,7 @@ def create_app() -> Flask:
     def competitors_page():
         session = get_session()
         try:
-            ctx = common_context()
+            ctx = common_context(session)
             ctx.update(competitors=session.query(Competitor).order_by(Competitor.name).all())
             return render_template("competitors.html", **ctx)
         finally:
