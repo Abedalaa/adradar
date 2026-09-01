@@ -1,7 +1,14 @@
 import os
+from pathlib import Path
+
 from dotenv import load_dotenv
 
-load_dotenv()
+# Bare load_dotenv() searches upward from the current working directory,
+# which Passenger doesn't set to the app root — under cPanel that silently
+# loaded nothing, leaving every token empty. Anchor the lookup to this
+# file's location instead: adradar/config.py -> project root -> .env.
+load_dotenv(Path(__file__).resolve().parent.parent / ".env")
+load_dotenv()  # fallback: a .env somewhere up from the cwd, for odd layouts
 
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///adradar.db")
 META_ACCESS_TOKEN = os.getenv("META_ACCESS_TOKEN", "").strip()
