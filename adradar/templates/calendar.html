@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="screen-head">
+  <h1>تقويم الحملات</h1>
+  <p>متى بدأ كل منافس حملته هذا العام (أول ظهور لأقدم إعلان مرصود).</p>
+</div>
+{% if rows %}
+<div class="timeline">
+  <div class="timeline-axis"></div>
+  <div class="month-labels">
+    <span>يناير</span><span>فبراير</span><span>مارس</span><span>أبريل</span><span>مايو</span><span>يونيو</span>
+    <span>يوليو</span><span>أغسطس</span><span>سبتمبر</span><span>أكتوبر</span><span>نوفمبر</span><span>ديسمبر</span>
+  </div>
+  {% for row in rows %}
+  <div class="comp-track">
+    <span class="comp-track-label">{{ row.name }}</span>
+    <span class="comp-dot" style="right:{{ row.pct }}%" title="{{ row.date_label }}"></span>
+  </div>
+  {% endfor %}
+  <div class="legend-row">
+    <span><span class="legend-swatch" style="background:var(--accent)"></span>أول ظهور مرصود لحملة المنافس</span>
+  </div>
+</div>
+{% else %}
+  <div class="empty-state">مفيش بيانات كفاية لرسم التقويم — دوس "تحديث البيانات الآن".</div>
+{% endif %}
+{% endblock %}

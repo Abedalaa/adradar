@@ -1,0 +1,14 @@
+# Secrets and local state — never commit these. The workflow gets its
+# credentials from GitHub Secrets and the database over FTP.
+.env
+*.db
+swipe_file/
+stderr.log
+pipeline.log
+
+.venv/
+__pycache__/
+*.pyc
+
+.DS_Store
+__MACOSX/

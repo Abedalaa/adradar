@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="screen-head">
+  <h1>المنافسون</h1>
+  <p>إدارة قائمة المنافسين المراقَبين عبر مكتبات الإعلانات.</p>
+</div>
+<div class="comp-list">
+  {% for c in competitors %}
+  <div class="comp-card">
+    <span>{{ c.name }}</span>
+    <span class="angle-pill">{{ 'سكريبت' if c.platform == 'meta_scrape' else 'API رسمي' }}</span>
+    <span class="pid ltr">{{ c.platform_page_id }}</span>
+    <form method="post" action="{{ url_for('delete_competitor', competitor_id=c.id) }}">
+      <button class="unsave-btn" type="submit">حذف</button>
+    </form>
+  </div>
+  {% else %}
+  <p class="empty-state">لسه ما ضفتش منافسين.</p>
+  {% endfor %}
+</div>
+<div class="add-form">
+  <h2>إضافة منافس جديد</h2>
+  <p class="hint" id="platform-hint" style="font-size:12.5px;color:var(--ink-soft);margin:-4px 0 12px;">
+    الصق رقم الصفحة أو رابطها كامل — لو الرابط فيه اسم مخصص (زي facebook.com/PageName) هات الرقم من "About" في الصفحة نفسها.
+  </p>
+  <form class="add-form-row" method="post" action="{{ url_for('add_competitor') }}">
+    <select class="filter-select" name="platform" id="platform-select">
+      <option value="meta">Meta — API رسمي (رقم الصفحة)</option>
+      <option value="meta_scrape">Meta — سكريبت (اسم الصفحة بالظبط)</option>
+    </select>
+    <input class="form-input" type="text" name="name" placeholder="اسم المنافس" required>
+    <input class="form-input" type="text" name="page_id" id="page-id-input" placeholder="معرّف صفحة فيسبوك أو رابطها" required>
+    <button class="add-btn" type="submit">إضافة</button>
+  </form>
+</div>
+<script>
+(function(){
+  var select = document.getElementById('platform-select');
+  var input = document.getElementById('page-id-input');
+  var hint = document.getElementById('platform-hint');
+  var hints = {
+    meta: 'الصق رقم الصفحة أو رابطها كامل — لو الرابط فيه اسم مخصص (زي facebook.com/PageName) هات الرقم من "About" في الصفحة نفسها.',
+    meta_scrape: 'اكتب اسم الصفحة بالظبط زي ما هو ظاهر على فيسبوك (مثال: Vodafone Egypt) — لازم يطابق الاسم الحقيقي حرفياً.'
+  };
+  var placeholders = { meta: 'معرّف صفحة فيسبوك أو رابطها', meta_scrape: 'اسم الصفحة بالظبط' };
+  select.addEventListener('change', function(){
+    hint.textContent = hints[select.value];
+    input.placeholder = placeholders[select.value];
+  });
+})();
+</script>
+{% endblock %}

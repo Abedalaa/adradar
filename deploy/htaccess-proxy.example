@@ -1,0 +1,12 @@
+# Reverse-proxy template for a cPanel/WHM subdomain (Apache + mod_proxy,
+# via EasyApache 4 — the default on most cPanel/WHM VPS installs).
+#
+# Copy this into the subdomain's document root as ".htaccess" AFTER
+# adradar-web.service is running (systemctl status adradar-web).
+# Replace nothing else — gunicorn already listens on 127.0.0.1:5050.
+
+RewriteEngine On
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteRule ^(.*)$ http://127.0.0.1:5050/$1 [P,L]
+
+ProxyPassReverse / http://127.0.0.1:5050/

@@ -1,0 +1,19 @@
+# Emergency guard — copy into ANY web-served folder that ends up holding
+# AdRadar code (e.g. public_html, if the app root can't live outside it).
+#
+# This is a safety net, not the plan: on cPanel the app root belongs
+# OUTSIDE public_html, served through "Setup Python App". See
+# deploy/CPANEL.md.
+
+# Never serve secrets, the database, or raw source.
+<FilesMatch "\.(env|db|sqlite|sqlite3|py|command|json|service|timer|sh|md)$">
+  Require all denied
+</FilesMatch>
+
+# .env has a leading dot — FilesMatch above covers it, this is belt-and-braces.
+<Files ".env">
+  Require all denied
+</Files>
+
+# No directory listings (the "Index of /" page).
+Options -Indexes

@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% import "macros.html" as m %}
+{% block content %}
+<div class="screen-head">
+  <h1>🔥 متتبع الإعلانات طويلة العمر</h1>
+  <p>مرتّبة حسب عدد الأيام منذ أول ظهور. طول العمر إشارة قوية على إعلان رابح.</p>
+</div>
+
+<form method="post" action="{{ url_for('download') }}">
+<input type="hidden" name="next" value="{{ request.full_path }}">
+<div class="bulk-bar">
+  <label><input type="checkbox" id="check-all" class="row-check"> تحديد الكل</label>
+  <span id="selected-count">0 محدد</span>
+  <button class="btn-secondary" type="submit" id="bulk-download-btn" disabled>تنزيل المحدد</button>
+</div>
+
+<div class="full-table">
+  {% if ads %}
+    {% for ad in ads %}
+    <div class="ad-row">
+      <input type="checkbox" class="row-check ad-check" name="raw_ad_ids" value="{{ ad.id }}">
+      <span class="rank">{{ loop.index }}</span>
+      <span class="badge">{{ ad.lifespan_days }} يوم</span>
+      <span class="type-icon">{{ m.type_icon(ad.creative_type) }}</span>
+      <span class="who">{{ ad.competitor.name }}</span>
+      <span class="text">{{ ad.raw_text }}</span>
+      <span class="angle-pill">{{ angle_labels.get(ad.classification.angle, ad.classification.angle) if ad.classification else '—' }}</span>
+      <span class="row-actions">
+        <button class="icon-btn" formaction="{{ url_for('download_one', raw_ad_id=ad.id) }}" title="تنزيل الوسائط">{{ m.download_icon() }}</button>
+        {% if ad.id in saved_ids %}
+          <button class="icon-btn saved" formaction="{{ url_for('unsave', raw_ad_id=ad.id) }}" title="إزالة من بنك الأفكار">{{ m.bookmark_icon(true) }}</button>
+        {% else %}
+          <button class="icon-btn" formaction="{{ url_for('save_ad_route', raw_ad_id=ad.id) }}" title="حفظ في بنك الأفكار">{{ m.bookmark_icon(false) }}</button>
+        {% endif %}
+      </span>
+    </div>
+    {% endfor %}
+  {% else %}
+    <p class="empty-state">مفيش إعلانات لسه — دوس "تحديث البيانات الآن".</p>
+  {% endif %}
+</div>
+</form>
+
+<script>
+(function(){
+  var checkAll = document.getElementById('check-all');
+  var boxes = document.querySelectorAll('.ad-check');
+  var countEl = document.getElementById('selected-count');
+  var btn = document.getElementById('bulk-download-btn');
+
+  function refresh(){
+    var n = document.querySelectorAll('.ad-check:checked').length;
+    countEl.textContent = n + ' محدد';
+    btn.disabled = n === 0;
+  }
+  checkAll.addEventListener('change', function(){
+    boxes.forEach(function(b){ b.checked = checkAll.checked; });
+    refresh();
+  });
+  boxes.forEach(function(b){ b.addEventListener('change', refresh); });
+  refresh();
+})();
+</script>
+{% endblock %}

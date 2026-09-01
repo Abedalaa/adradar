@@ -1,0 +1,12 @@
+# cPanel > Cron Jobs — runs the ingest/classify/scan pipeline.
+# The systemd timer in this folder (adradar-pipeline.timer) is the VPS
+# equivalent; on shared hosting cron is the only scheduler available.
+#
+# Replace USERNAME with your cPanel username and adradar with the app
+# root you chose. Get the exact venv path from "Setup Python App" — the
+# page shows a "source /home/USERNAME/virtualenv/.../activate" command;
+# the python binary sits in that same bin/ folder.
+#
+# Every 12 hours (00:00 and 12:00), matching adradar-pipeline.timer:
+
+0 */12 * * * /home/USERNAME/virtualenv/adradar/3.11/bin/python /home/USERNAME/adradar/main.py pipeline >> /home/USERNAME/adradar/pipeline.log 2>&1

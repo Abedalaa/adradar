@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="screen-head">
+  <h1>نظرة عامة</h1>
+  <p>ملخص سريع لكل المنافسين المراقَبين وأهم ما تغيّر مؤخراً.</p>
+</div>
+<div class="stats-row">
+  <div class="stat-card"><div class="value">{{ stats.competitors }}</div><div class="label">منافسون مراقَبون</div></div>
+  <div class="stat-card"><div class="value">{{ stats.active_ads }}</div><div class="label">إعلان نشط الآن</div></div>
+  <div class="stat-card"><div class="value">{{ stats.tracked_ads }}</div><div class="label">إجمالي إعلانات متتبَّعة</div></div>
+  <div class="stat-card"><div class="value">{{ stats.failed_ads }}</div><div class="label">إعلان في قائمة الفشل</div></div>
+</div>
+<div class="grid2">
+  <div class="panel">
+    <h2>🔥 الإعلانات الأطول عمراً</h2>
+    {% if longevity %}
+      {% for ad in longevity %}
+      <div class="ad-row">
+        <span class="badge">{{ ad.lifespan_days }} يوم</span>
+        <span class="who">{{ ad.competitor.name }}</span>
+        <span class="text">{{ ad.raw_text }}</span>
+      </div>
+      {% endfor %}
+    {% else %}
+      <p class="empty-state">مفيش بيانات لسه — دوس "تحديث البيانات الآن".</p>
+    {% endif %}
+  </div>
+  <div class="panel">
+    <h2>أحدث التنبيهات</h2>
+    {% if alerts %}
+      {% for a in alerts %}
+      <div class="alert-item{{ ' is-read' if a.read else '' }}">
+        <div>
+          <div class="txt">{{ a.detail }}</div>
+          <div class="when">{{ a.created_at.strftime('%Y-%m-%d') }}</div>
+        </div>
+      </div>
+      {% endfor %}
+    {% else %}
+      <p class="empty-state">مفيش تنبيهات حالياً.</p>
+    {% endif %}
+    <h2 style="margin-top:16px">أحدث الإعلانات الفاشلة</h2>
+    {% if failures %}
+      {% for f in failures %}
+      <div class="failure-item">
+        <div>
+          <div class="txt">{{ f.ad.competitor.name }} — عمر {{ f.lifespan_days }} يوم</div>
+          <div class="meta">اختفى في {{ f.disappeared_at }}</div>
+        </div>
+      </div>
+      {% endfor %}
+    {% else %}
+      <p class="empty-state">مفيش إعلانات فاشلة مسجّلة.</p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

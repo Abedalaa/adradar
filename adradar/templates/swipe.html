@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% import "macros.html" as m %}
+{% block content %}
+<div class="screen-head">
+  <h1>بنك الأفكار الذكي</h1>
+  <p>الإعلانات اللي حفظتها كأفكار — منظّمة حسب نوع الإبداع.</p>
+</div>
+
+<div class="tab-row">
+  <div class="tabs">
+    <a class="tab-btn{{ ' active' if not active_type else '' }}" href="{{ url_for('swipe') }}">الكل</a>
+    <a class="tab-btn{{ ' active' if active_type == 'image' else '' }}" href="{{ url_for('swipe', type='image') }}">صورة</a>
+    <a class="tab-btn{{ ' active' if active_type == 'video' else '' }}" href="{{ url_for('swipe', type='video') }}">فيديو</a>
+    <a class="tab-btn{{ ' active' if active_type == 'carousel' else '' }}" href="{{ url_for('swipe', type='carousel') }}">كاروسيل</a>
+  </div>
+</div>
+
+<form method="post" action="{{ url_for('download') }}">
+<input type="hidden" name="next" value="{{ request.full_path }}">
+{% if items %}
+<div class="bulk-bar">
+  <label><input type="checkbox" id="check-all" class="row-check"> تحديد الكل</label>
+  <span id="selected-count">0 محدد</span>
+  <button class="btn-secondary" type="submit" id="bulk-download-btn" disabled>تنزيل المحدد</button>
+</div>
+<div class="swipe-grid">
+  {% for saved in items %}
+  <div class="swipe-card">
+    <input type="checkbox" class="row-check ad-check" name="raw_ad_ids" value="{{ saved.ad.id }}">
+    <div class="swipe-thumb">{{ m.type_icon(saved.ad.creative_type, 26) }}</div>
+    <div class="swipe-body">
+      <div class="who">{{ saved.ad.competitor.name }}</div>
+      <div class="text">{{ saved.ad.raw_text }}</div>
+      <div class="swipe-actions">
+        <span class="angle-pill">{{ angle_labels.get(saved.ad.classification.angle, saved.ad.classification.angle) if saved.ad.classification else '—' }}</span>
+        <span class="row-actions">
+          <button class="icon-btn" formaction="{{ url_for('download_one', raw_ad_id=saved.ad.id) }}" title="تنزيل الوسائط">{{ m.download_icon(15) }}</button>
+          <button class="unsave-btn" formaction="{{ url_for('unsave', raw_ad_id=saved.ad.id) }}">إزالة</button>
+        </span>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+  <div class="empty-state">لسه ما حفظتش أي إعلان من هذا النوع — من شاشة "طول العمر" دوس على أيقونة الحفظ.</div>
+{% endif %}
+</form>
+
+<script>
+(function(){
+  var checkAll = document.getElementById('check-all');
+  if (!checkAll) return;
+  var boxes = document.querySelectorAll('.ad-check');
+  var countEl = document.getElementById('selected-count');
+  var btn = document.getElementById('bulk-download-btn');
+  function refresh(){
+    var n = document.querySelectorAll('.ad-check:checked').length;
+    countEl.textContent = n + ' محدد';
+    btn.disabled = n === 0;
+  }
+  checkAll.addEventListener('change', function(){
+    boxes.forEach(function(b){ b.checked = checkAll.checked; });
+    refresh();
+  });
+  boxes.forEach(function(b){ b.addEventListener('change', refresh); });
+  refresh();
+})();
+</script>
+{% endblock %}

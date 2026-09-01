@@ -1,0 +1,16 @@
+# Shared-hosting install list (cPanel > Setup Python App > Run Pip Install).
+#
+# Two deliberate omissions vs requirements.txt:
+#   playwright — needs a full Chromium download plus system libraries that
+#     shared hosting doesn't provide. Without it, platform="meta_scrape"
+#     competitors can't be pulled; platform="meta" (official Ad Library
+#     API) works normally. pipeline.py only imports it when a meta_scrape
+#     competitor actually exists, so nothing else breaks.
+#   gunicorn — Passenger is the WSGI server here, so gunicorn is dead
+#     weight. It stays in requirements.txt for the systemd/VPS path.
+
+sqlalchemy>=2.0
+requests>=2.31
+python-dotenv>=1.0
+anthropic>=0.40
+flask>=3.0

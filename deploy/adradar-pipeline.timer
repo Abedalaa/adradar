@@ -1,0 +1,11 @@
+[Unit]
+Description=Run AdRadar data pull every 12 hours
+
+[Timer]
+OnBootSec=5min
+OnUnitActiveSec=12h
+Persistent=true
+Unit=adradar-pipeline.service
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,11 @@
+[Unit]
+Description=AdRadar data pull (ingest, classify, failure/trend scans)
+After=network.target
+
+[Service]
+Type=oneshot
+User=adradar
+Group=adradar
+WorkingDirectory=/opt/adradar
+EnvironmentFile=/opt/adradar/.env
+ExecStart=/opt/adradar/.venv/bin/python main.py pipeline

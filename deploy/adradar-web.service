@@ -1,0 +1,16 @@
+[Unit]
+Description=AdRadar dashboard (gunicorn)
+After=network.target
+
+[Service]
+Type=simple
+User=adradar
+Group=adradar
+WorkingDirectory=/opt/adradar
+EnvironmentFile=/opt/adradar/.env
+ExecStart=/opt/adradar/.venv/bin/gunicorn --workers 2 --bind 0.0.0.0:5050 wsgi:app
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

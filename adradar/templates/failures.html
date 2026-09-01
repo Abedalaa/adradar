@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="screen-head">
+  <h1>قائمة الإعلانات الفاشلة</h1>
+  <p>إعلانات اختفت خلال أقل من 5 أيام — نمط لا يستحق التكرار.</p>
+</div>
+{% if failures %}
+  {% for f in failures %}
+  <div class="failure-item">
+    <div>
+      <div class="txt">{{ f.ad.competitor.name }} — عمر {{ f.lifespan_days }} يوم — {{ angle_labels.get(f.ad.classification.angle, f.ad.classification.angle) if f.ad.classification else '—' }}</div>
+      <div class="meta">اختفى في {{ f.disappeared_at }}</div>
+    </div>
+    <form method="post" action="{{ url_for('dismiss', failed_ad_id=f.id) }}">
+      <input type="hidden" name="next" value="{{ request.full_path }}">
+      <button class="small-btn" type="submit">تجاهل</button>
+    </form>
+  </div>
+  {% endfor %}
+{% else %}
+  <div class="empty-state">مفيش إعلانات فاشلة معلّقة حالياً.</div>
+{% endif %}
+{% endblock %}

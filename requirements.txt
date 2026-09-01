@@ -1,0 +1,10 @@
+sqlalchemy>=2.0
+requests>=2.31
+python-dotenv>=1.0
+anthropic>=0.40
+flask>=3.0
+gunicorn>=21.2
+
+# Only needed for platform="meta_scrape" competitors (adradar/sources/meta_scraper.py).
+# After installing, also run: playwright install chromium
+playwright>=1.40
