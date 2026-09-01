@@ -1,89 +1,73 @@
-"""Round-trips adradar.db between the cPanel host and a CI runner over FTP.
+"""Round-trips adradar.db between the live site and a CI runner over HTTPS.
 
 Why the round trip matters: RawAd.first_seen is written once, on an ad's
-first observation, and every longevity/failure number is derived from it.
-A pipeline run that starts from an empty database would reset that history
-on every run, so the runner must pull the live database, append to it, and
-push it back.
+first observation, and every longevity and failure number is derived from
+it. A pipeline run starting from an empty database would reset that
+history each time, so the runner pulls the live database, appends to it,
+and pushes it back.
 
-Missing remote file is treated as "first run": download exits quietly and
-the pipeline builds a fresh database, which upload then publishes.
+Why HTTPS and not FTP: the shared host firewalls port 21 off from outside
+(it timed out from a GitHub runner and answers only intermittently even
+from a home connection), while 443 serves the dashboard reliably. The
+matching endpoint lives in adradar/web.py as /sync/db.
 """
 
 import os
-import ssl
 import sys
-from ftplib import FTP, FTP_TLS, error_perm
 
-HOST = os.environ["FTP_HOST"]
-USER = os.environ["FTP_USER"]
-PASSWORD = os.environ["FTP_PASS"]
-# Directory on the server holding adradar.db, e.g. /adradar.dreamers.cv
-REMOTE_DIR = os.environ.get("FTP_DIR", "/adradar.dreamers.cv")
-REMOTE_NAME = os.environ.get("FTP_DB_NAME", "adradar.db")
+import requests
+
+BASE_URL = os.environ["SYNC_URL"].rstrip("/")
+TOKEN = os.environ["SYNC_TOKEN"]
 LOCAL_PATH = os.environ.get("LOCAL_DB", "adradar.db")
+TIMEOUT = 120
 
 
-def connect():
-    """Explicit FTPS if the server offers it, plain FTP otherwise.
-
-    Shared hosts vary: some require TLS, some present a certificate that
-    fails verification, some only speak plain FTP. Trying in this order
-    keeps credentials encrypted whenever the server allows it.
-    """
-    try:
-        ftp = FTP_TLS(context=ssl._create_unverified_context())
-        ftp.connect(HOST, 21, timeout=60)
-        ftp.login(USER, PASSWORD)
-        ftp.prot_p()
-        print("connected: FTPS")
-    except Exception as e:
-        print(f"FTPS unavailable ({e}) — falling back to plain FTP")
-        ftp = FTP()
-        ftp.connect(HOST, 21, timeout=60)
-        ftp.login(USER, PASSWORD)
-        print("connected: FTP")
-    ftp.set_pasv(True)
-    ftp.cwd(REMOTE_DIR)
-    return ftp
+def _headers() -> dict:
+    return {"X-Sync-Token": TOKEN}
 
 
-def download():
-    ftp = connect()
-    try:
-        with open(LOCAL_PATH, "wb") as f:
-            ftp.retrbinary(f"RETR {REMOTE_NAME}", f.write)
-        print(f"downloaded {REMOTE_NAME} -> {LOCAL_PATH} ({os.path.getsize(LOCAL_PATH)} bytes)")
-    except error_perm as e:
-        # 550 = no such file. Anything else is a real problem worth failing on.
-        if not str(e).startswith("550"):
-            raise
+def download() -> None:
+    resp = requests.get(f"{BASE_URL}/sync/db", headers=_headers(), timeout=TIMEOUT)
+
+    if resp.status_code == 404:
+        sys.exit(
+            "404 from /sync/db — either SYNC_TOKEN doesn't match the server's, "
+            "or the server has none set. Both must match; restart the app after "
+            "editing .env."
+        )
+    resp.raise_for_status()
+
+    if resp.status_code == 204 or not resp.content:
+        # Server has no database yet. Leave nothing behind, so the pipeline
+        # builds a fresh one and upload publishes it.
         if os.path.exists(LOCAL_PATH):
             os.remove(LOCAL_PATH)
         print("no remote database yet — starting fresh")
-    finally:
-        ftp.quit()
+        return
+
+    with open(LOCAL_PATH, "wb") as f:
+        f.write(resp.content)
+    print(f"downloaded {len(resp.content)} bytes -> {LOCAL_PATH}")
 
 
-def upload():
+def upload() -> None:
     if not os.path.exists(LOCAL_PATH):
         sys.exit(f"{LOCAL_PATH} does not exist — the pipeline produced nothing to upload")
 
-    ftp = connect()
-    try:
-        # Upload to a temp name, then rename over the live file, so a
-        # dashboard request mid-transfer never reads a half-written database.
-        tmp_name = REMOTE_NAME + ".uploading"
-        with open(LOCAL_PATH, "rb") as f:
-            ftp.storbinary(f"STOR {tmp_name}", f)
-        try:
-            ftp.delete(REMOTE_NAME)
-        except error_perm:
-            pass
-        ftp.rename(tmp_name, REMOTE_NAME)
-        print(f"uploaded {LOCAL_PATH} -> {REMOTE_DIR}/{REMOTE_NAME} ({os.path.getsize(LOCAL_PATH)} bytes)")
-    finally:
-        ftp.quit()
+    with open(LOCAL_PATH, "rb") as f:
+        payload = f.read()
+
+    resp = requests.post(
+        f"{BASE_URL}/sync/db",
+        headers={**_headers(), "Content-Type": "application/octet-stream"},
+        data=payload,
+        timeout=TIMEOUT,
+    )
+    if resp.status_code == 404:
+        sys.exit("404 from /sync/db — SYNC_TOKEN mismatch (see download() note)")
+    resp.raise_for_status()
+    print(f"uploaded {len(payload)} bytes -> {BASE_URL} ({resp.text.strip()})")
 
 
 if __name__ == "__main__":

@@ -282,5 +282,73 @@ def create_app() -> Flask:
             session.close()
         return safe_redirect("failures")
 
+    # --- database sync -----------------------------------------------------
+    # Shared hosting can't run the scraper (no Playwright), so the pipeline
+    # runs on a CI runner instead, which needs to borrow this database and
+    # hand it back — see .github/workflows/pipeline.yml. FTP was the obvious
+    # transport and turned out to be firewalled off from outside, so the
+    # exchange rides the one port that's reliably open: this app's own HTTPS.
+    #
+    # The runner MUST start from the live file rather than a fresh one:
+    # RawAd.first_seen is written once, on an ad's first observation, and
+    # every longevity and failure number is derived from it.
+
+    @app.route("/sync/db", methods=["GET", "POST"])
+    def sync_db():
+        token = os.getenv("SYNC_TOKEN", "").strip()
+        if not token:
+            # No token configured means the feature is off, and saying so
+            # would advertise an endpoint worth attacking. Look absent.
+            return ("Not Found", 404)
+
+        supplied = request.headers.get("X-Sync-Token", "")
+        # Constant-time compare: a plain != leaks the token one byte at a
+        # time to anyone willing to measure response latency.
+        import hmac
+
+        if not hmac.compare_digest(supplied, token):
+            return ("Not Found", 404)
+
+        db_path = _sqlite_path()
+        if db_path is None:
+            return ("sync is only supported for SQLite databases", 400)
+
+        if request.method == "GET":
+            if not os.path.exists(db_path):
+                return ("", 204)  # nothing to hand over yet
+            return send_file(db_path, mimetype="application/octet-stream")
+
+        payload = request.get_data()
+        if not payload:
+            return ("empty body", 400)
+
+        # Write beside the target and rename: a dashboard request landing
+        # mid-upload must never open a half-written database. os.replace is
+        # atomic within a filesystem, and readers holding the old file keep
+        # a valid one until they close it.
+        tmp_path = db_path + ".uploading"
+        with open(tmp_path, "wb") as f:
+            f.write(payload)
+        os.replace(tmp_path, db_path)
+
+        # Pooled connections still point at the replaced file's inode, so
+        # without this the dashboard serves pre-sync data until the worker
+        # recycles.
+        from .db import engine
+
+        engine.dispose()
+        return (f"ok {len(payload)}", 200)
+
     return app
+
+
+def _sqlite_path() -> str | None:
+    """Filesystem path behind config.DATABASE_URL, or None if it isn't SQLite."""
+    from . import config
+
+    url = config.DATABASE_URL
+    if not url.startswith("sqlite:"):
+        return None
+    path = url.split("sqlite:///")[-1]
+    return path if os.path.isabs(path) else os.path.abspath(path)
 
